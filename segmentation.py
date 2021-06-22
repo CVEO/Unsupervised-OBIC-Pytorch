@@ -3,9 +3,9 @@ import time
 from osgeo import gdal, gdal_array
 from skimage import segmentation
     
-input_image_path = "data/austin1.tif"
-output_seg_path = "data/austin1_label.tif"
-scale=64
+input_image_path = "data/top_potsdam_3_10/image.tif"
+output_seg_path = "data/top_potsdam_3_10/seg.tif"
+scale=32
 
 # input_image_path = "data/city.bmp"
 # output_seg_path = "data/city_mask.tif"

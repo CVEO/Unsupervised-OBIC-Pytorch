@@ -1,80 +1,52 @@
 import os
 import time
+from datetime import datetime
+import argparse
 from tqdm import tqdm
+from pathlib import Path
 import random
 import numpy as np
-from osgeo import gdal, gdal_array
+from osgeo import gdal_array
 import torch
 import torch.nn.functional as F
-from lovasz_losses import lovasz_softmax_flat
-from focal_loss import focal_loss
+# from losses.lovasz_losses import lovasz_softmax_flat
+# from losses.focal_loss import focal_loss
 from model import DeepNet
 from segmentation import SaveLabelArrayInCompressMode
 
-class Args(object):
-    input_image_path = 'data/austin1.tif'
-    output_seg_path = "data/austin1_label.tif"
-    model_path = "model_as1.pt"
-
-    # input_image_path = 'data/austin26.tif'
-    # output_seg_path = "data/austin26_label.tif"
-    # model_path = "model_as.pt"
-
-    # input_image_path = 'data/G50G017079.tif'  
-    # output_seg_path = "data/G50G017079_mask.tif"
-    # model_path = "model_fj.pt"
-
-    # input_image_path = 'data/G50G009077.tif'  
-    # output_seg_path = "data/G50G009077_mask.tif"
-    # model_path = "model_fj2.pt"
-
-    # input_image_path = 'data/ah_image.tif'  
-    # output_seg_path = "data/ah_mask.tif"
-    # model_path = "model_ah.pt"
-
-    # input_image_path = 'data/airport.tif'  
-    # output_seg_path = "data/airport_mask.tif"
-    # model_path = "model_ap.pt"
-
-    # input_image_path = 'data/city.bmp'  
-    # output_seg_path = "data/city_mask.tif"
-    # model_path = "model_ct.pt"
-    train_epoch = 4
-    mod_dim1 = 64  #
-    mod_dim2 = 32
-    gpu_id = 0
-
-    min_label_num = 10  # if the label number small than it, break loop
-    max_label_num = 256  # if the label number small than it, start to show result image.
-
-def run():
-    start_time0 = time.time()
-
-    args = Args()
+def train(args):
     torch.cuda.manual_seed_all(1943)
     np.random.seed(1943)
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)  # choose GPU:0
-    image = gdal_array.LoadFile(args.input_image_path)
-    channels, height, width = image.shape
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0"  # choose GPU:0
+
+    start_time0 = time.time()
+
+    input_image_path = "data/{}/image.tif".format(args.input)
+    seg_path = "data/{}/seg.tif".format(args.input)
+    result_id = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+
+    '''load image'''
+    image = gdal_array.LoadFile(input_image_path)
 
     '''load segmentation result'''
-    seg_map = gdal_array.LoadFile(args.output_seg_path)
-
+    seg_map = gdal_array.LoadFile(seg_path)
+    channels, height, width = image.shape
 
     '''train init'''
     device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
     print(device)
 
-    classes = args.mod_dim2
-    model = DeepNet(inp_dim=channels, mod_dim1=args.mod_dim1, mod_dim2=classes).to(device)
+    classes = args.classes
+    model = DeepNet(inp_dim=channels, classes=classes).to(device)
     criterion_ce = torch.nn.CrossEntropyLoss()
-    criterion_lovasz = lovasz_softmax_flat
-    criterion_focal = focal_loss()
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    # criterion_lovasz = lovasz_softmax_flat
+    # criterion_focal = focal_loss()
 
-    x_buffersize, y_buffersize = 512, 512
-    x_stride, y_stride = 448, 448
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    x_buffersize, y_buffersize = args.buffersize, args.buffersize
+    x_stride, y_stride = args.stride, args.stride
 
 
     '''load seg_lab patches'''
@@ -116,7 +88,7 @@ def run():
     '''train loop'''
     start_time1 = time.time()
 
-    for batch_idx in range(args.train_epoch):
+    for batch_idx in range(args.epochs):
         '''forward'''
         model.train()
 
@@ -129,7 +101,7 @@ def run():
 
             optimizer.zero_grad()
             output = model(tensor)[0]
-            output = output.permute(1, 2, 0).view(-1, args.mod_dim2)
+            output = output.permute(1, 2, 0).view(-1, args.classes)
             target = torch.argmax(output, 1)
             im_target = target.data.cpu().numpy()
 
@@ -161,7 +133,9 @@ def run():
             output = F.softmax(model(tensor)[0], dim=0).data.cpu().numpy() * 63.
             im_target[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)] += output.astype("uint8")
         im_target = np.argmax(im_target, 0).astype("uint8")
-        SaveLabelArrayInCompressMode(im_target, "test_pixel_epoch_{}.tif".format(batch_idx), seive_small_area=True)
+        output_path = "results/{}/{}/test_pixel_epoch_{}.tif".format(args.input, result_id, batch_idx)
+        Path(output_path).parent.mkdir(parents = True, exist_ok=True)
+        SaveLabelArrayInCompressMode(im_target, output_path, seive_small_area=True)
 
         # if len(un_label) < args.min_label_num:
         #     break
@@ -172,8 +146,48 @@ def run():
     print('PyTorchInit: %.2f\nTimeUsed: %.2f' % (time0, time1))
     # cv2.imwrite("seg_%s_%ds.png" % (args.input_image_path[6:-4], time1), show)
 
-    torch.save(model.state_dict(),  args.model_path)
+    # torch.save(model.state_dict(),  args.model_path)
 
+def run():
+    parser = argparse.ArgumentParser(
+        description='Unsupervised learning on a certain RS image.',
+        epilog='Developed by CVEO Team.',
+        formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument(
+        '-i', '--input',
+        help='path of the input image',
+        metavar='image_path',
+        required=True)
+
+    parser.add_argument(
+        '-e', '--epochs',
+        type=int,
+        default=4,
+        metavar='num',
+        help='training epochs (default: 4)')
+
+    parser.add_argument(
+        '-c', '--classes',
+        help='number of categories',
+        type=int,
+        default=32)
+
+    parser.add_argument(
+        '-b', '--buffersize',
+        help='buffer size',
+        type=int,
+        default=512)
+
+    parser.add_argument(
+        '-s', '--stride',
+        help='buffer size',
+        type=int,
+        default=448)
+
+    args = parser.parse_args()
+
+    train(args)
 
 if __name__ == '__main__':
     run()
