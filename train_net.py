@@ -51,7 +51,6 @@ def train(args):
 
     '''load seg_lab patches'''
     patches_info = []
-    dict_seg_lab = {}    
     y_offset = 0
     while y_offset < height:
         is_y_last = False
@@ -64,11 +63,7 @@ def train(args):
             is_x_last = False
             if x_offset + x_buffersize >= width:
                 x_offset = width - x_buffersize                
-                is_x_last = True
-
-            seg_map_buffer = seg_map[y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].flatten()
-            seg_lab = [np.where(seg_map_buffer == u_label)[0] for u_label in np.unique(seg_map_buffer)]
-            dict_seg_lab[(y_offset, x_offset)] = seg_lab
+                is_x_last = True            
 
             patches_info.append([
                 y_offset, x_offset, y_buffersize, x_buffersize
@@ -85,8 +80,18 @@ def train(args):
         y_offset += y_stride                 
 
 
-    '''train loop'''
+    '''Init segmap'''
     start_time1 = time.time()
+
+    dict_seg_lab = {}    
+    for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(patches_info):
+        seg_map_buffer = seg_map[y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].flatten()
+        dict_seg_lab[(y_offset, x_offset)] = [np.where(seg_map_buffer == u_label)[0] for u_label in np.unique(seg_map_buffer)]
+
+
+
+    '''train loop'''
+    start_time2 = time.time()
 
     for batch_idx in range(args.epochs):
         '''forward'''
@@ -95,9 +100,8 @@ def train(args):
         shuffled_patches_info = random.sample(patches_info, len(patches_info))
         for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(shuffled_patches_info):
 
-            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32) / 255.0
-            buffer = buffer[np.newaxis, :, :, :]
-            tensor = torch.from_numpy(buffer).to(device)
+            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32)
+            tensor = torch.unsqueeze(torch.from_numpy(buffer).to(device)/ 255.0, 0) # np.newaxis
 
             optimizer.zero_grad()
             output = model(tensor)[0]
@@ -112,8 +116,7 @@ def train(args):
                 im_target[inds] = u_labels[np.argmax(hist)]
 
             '''backward'''
-            target = torch.from_numpy(im_target)
-            target = target.to(device)
+            target = torch.from_numpy(im_target).to(device)
             # loss = criterion_ce(output, target) + criterion_lovasz(output, target)
             loss = criterion_ce(output, target)
             # loss = criterion_focal(output, target) + criterion_lovasz(output, target)
@@ -127,13 +130,12 @@ def train(args):
         im_target = np.zeros((classes, height, width), dtype="uint8")
         model.eval()
         for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(patches_info):
-            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32) / 255.0
-            buffer = buffer[np.newaxis, :, :, :]
-            tensor = torch.from_numpy(buffer).to(device)
-            output = F.softmax(model(tensor)[0], dim=0).data.cpu().numpy() * 63.
-            im_target[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)] += output.astype("uint8")
+            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32)
+            tensor = torch.unsqueeze(torch.from_numpy(buffer).to(device)/ 255.0, 0) # np.newaxis
+            output = F.softmax(model(tensor)[0], dim=0) * 63.
+            im_target[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)] += output.data.cpu().numpy().astype("uint8")
         im_target = np.argmax(im_target, 0).astype("uint8")
-        output_path = "results/{}/{}/test_pixel_epoch_{}.tif".format(args.input, result_id, batch_idx)
+        output_path = "results/{}/{}/epoch_{}.tif".format(args.input, result_id, batch_idx)
         Path(output_path).parent.mkdir(parents = True, exist_ok=True)
         SaveLabelArrayInCompressMode(im_target, output_path, seive_small_area=True)
 
@@ -141,23 +143,21 @@ def train(args):
         #     break
 
     '''save'''
-    time0 = time.time() - start_time0
-    time1 = time.time() - start_time1
-    print('PyTorchInit: %.2f\nTimeUsed: %.2f' % (time0, time1))
+    print('PyTorchInit: %.2f\nSegInit: %.2f\nTimeUsed: %.2f' % (start_time1 - start_time0, start_time2 - start_time1, time.time() - start_time2))
     # cv2.imwrite("seg_%s_%ds.png" % (args.input_image_path[6:-4], time1), show)
 
     # torch.save(model.state_dict(),  args.model_path)
 
 def run():
     parser = argparse.ArgumentParser(
-        description='Unsupervised learning on a certain RS image.',
+        description='Unsupervised learning on a large scene RS image.',
         epilog='Developed by CVEO Team.',
         formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument(
         '-i', '--input',
-        help='path of the input image',
-        metavar='image_path',
+        help='name of the input image',
+        metavar='image_name',
         required=True)
 
     parser.add_argument(
