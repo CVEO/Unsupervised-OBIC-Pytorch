@@ -4,50 +4,35 @@ from datetime import datetime
 import argparse
 from tqdm import tqdm
 from pathlib import Path
+import multiprocessing
+from multiprocessing import Pool
 import random
 import numpy as np
-from osgeo import gdal_array
+from osgeo import gdal
 import torch
 import torch.nn.functional as F
-# from losses.lovasz_losses import lovasz_softmax_flat
-# from losses.focal_loss import focal_loss
 from model import DeepNet
 from segmentation import SaveLabelArrayInCompressMode
 
+# functions and variables defined
+MAX_PROCESS_COUNT = (multiprocessing.cpu_count()//2) or 1
+
+def generate_seg_map_buffer(patch_info):
+    y_offset, x_offset, y_buffersize, x_buffersize, seg_path = patch_info
+    seg_map = gdal.Open(seg_path)    
+    seg_map_buffer = seg_map.ReadAsArray(x_offset, y_offset, x_buffersize, y_buffersize).flatten()
+    return [np.where(seg_map_buffer == u_label)[0] for u_label in np.unique(seg_map_buffer)], y_offset, x_offset
+    
 def train(args):
-    torch.cuda.manual_seed_all(1943)
-    np.random.seed(1943)
-    os.environ['CUDA_VISIBLE_DEVICES'] = "0"  # choose GPU:0
-
-    start_time0 = time.time()
-
     input_image_path = "data/{}/image.tif".format(args.input)
     seg_path = "data/{}/seg.tif".format(args.input)
     result_id = datetime.now().strftime("%y-%m-%d_%H-%M-%S")
-
-    '''load image'''
-    image = gdal_array.LoadFile(input_image_path)
-
-    '''load segmentation result'''
-    seg_map = gdal_array.LoadFile(seg_path)
-    channels, height, width = image.shape
-
-    '''train init'''
-    device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
-    print(device)
-
-    classes = args.classes
-    model = DeepNet(inp_dim=channels, classes=classes).to(device)
-    criterion_ce = torch.nn.CrossEntropyLoss()
-    # criterion_lovasz = lovasz_softmax_flat
-    # criterion_focal = focal_loss()
-
-    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-
     x_buffersize, y_buffersize = args.buffersize, args.buffersize
     x_stride, y_stride = args.stride, args.stride
 
+    '''load image'''
+    src_ds = gdal.Open(input_image_path)
+    channels, height, width = src_ds.RasterCount, src_ds.RasterYSize, src_ds.RasterXSize
 
     '''load seg_lab patches'''
     patches_info = []
@@ -66,13 +51,11 @@ def train(args):
                 is_x_last = True            
 
             patches_info.append([
-                y_offset, x_offset, y_buffersize, x_buffersize
+                y_offset, x_offset, y_buffersize, x_buffersize, seg_path
             ])
-
 
             if is_x_last:
                 break
-
             x_offset += x_stride
 
         if is_y_last:
@@ -83,12 +66,24 @@ def train(args):
     '''Init segmap'''
     start_time1 = time.time()
 
+    print(len(patches_info))
+
     dict_seg_lab = {}    
-    for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(patches_info):
-        seg_map_buffer = seg_map[y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].flatten()
-        dict_seg_lab[(y_offset, x_offset)] = [np.where(seg_map_buffer == u_label)[0] for u_label in np.unique(seg_map_buffer)]
+    with Pool(processes=MAX_PROCESS_COUNT) as pool:
+        for seg_lab, y_offset, x_offset in list(tqdm(pool.imap_unordered(generate_seg_map_buffer, patches_info), total=len(patches_info))):
+            dict_seg_lab[(y_offset, x_offset)] = seg_lab
 
+    '''model init'''
+    torch.cuda.manual_seed_all(2021)
+    np.random.seed(2021)
+    os.environ['CUDA_VISIBLE_DEVICES'] = "0"  # choose GPU:0
+    device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
+    print(device)
 
+    classes = args.classes
+    model = DeepNet(inp_dim=channels, classes=classes).to(device)
+    criterion_ce = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     '''train loop'''
     start_time2 = time.time()
@@ -98,9 +93,8 @@ def train(args):
         model.train()
 
         shuffled_patches_info = random.sample(patches_info, len(patches_info))
-        for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(shuffled_patches_info):
-
-            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32)
+        for y_offset, x_offset, y_buffersize, x_buffersize, _ in tqdm(shuffled_patches_info):            
+            buffer = src_ds.ReadAsArray(x_offset, y_offset, x_buffersize, y_buffersize).astype(np.float32)
             tensor = torch.unsqueeze(torch.from_numpy(buffer).to(device)/ 255.0, 0) # np.newaxis
 
             optimizer.zero_grad()
@@ -117,10 +111,7 @@ def train(args):
 
             '''backward'''
             target = torch.from_numpy(im_target).to(device)
-            # loss = criterion_ce(output, target) + criterion_lovasz(output, target)
             loss = criterion_ce(output, target)
-            # loss = criterion_focal(output, target) + criterion_lovasz(output, target)
-
             loss.backward()
             optimizer.step()                
 
@@ -129,8 +120,8 @@ def train(args):
         ''' Validation '''
         im_target = np.zeros((classes, height, width), dtype="uint8")
         model.eval()
-        for y_offset, x_offset, y_buffersize, x_buffersize in tqdm(patches_info):
-            buffer = image[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)].astype(np.float32)
+        for y_offset, x_offset, y_buffersize, x_buffersize, _ in tqdm(patches_info):
+            buffer = src_ds.ReadAsArray(x_offset, y_offset, x_buffersize, y_buffersize).astype(np.float32)
             tensor = torch.unsqueeze(torch.from_numpy(buffer).to(device)/ 255.0, 0) # np.newaxis
             output = F.softmax(model(tensor)[0], dim=0) * 63.
             im_target[:, y_offset:(y_offset+y_buffersize), x_offset:(x_offset+x_buffersize)] += output.data.cpu().numpy().astype("uint8")
@@ -143,10 +134,7 @@ def train(args):
         #     break
 
     '''save'''
-    print('PyTorchInit: %.2f\nSegInit: %.2f\nTimeUsed: %.2f' % (start_time1 - start_time0, start_time2 - start_time1, time.time() - start_time2))
-    # cv2.imwrite("seg_%s_%ds.png" % (args.input_image_path[6:-4], time1), show)
-
-    # torch.save(model.state_dict(),  args.model_path)
+    print('SegInit: %.2f\nTrain: %.2f' % (start_time2 - start_time1, time.time() - start_time2))
 
 def run():
     parser = argparse.ArgumentParser(
