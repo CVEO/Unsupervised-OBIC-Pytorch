@@ -2,7 +2,6 @@ import os
 import time
 from datetime import datetime
 import argparse
-from numpy.core.fromnumeric import argsort
 from tqdm import tqdm
 from pathlib import Path
 import multiprocessing
@@ -14,8 +13,8 @@ import torch
 import torch.nn.functional as F
 from model import DeepNet
 from segmentation import SaveLabelArrayInCompressMode
-from torchsummary import summary
-import cv2 as cv
+
+
 
 # functions and variables defined
 MAX_PROCESS_COUNT = (multiprocessing.cpu_count()//2) or 1  

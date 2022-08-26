@@ -16,8 +16,54 @@ Original images and the segmentation results of different segmentation methods o
 
 ![alt text](figures/result.png)
 
-### Citation
-If you like to use our work please consider citing us;
+## Getting Started
+### Requement
+```
+python=3.7.0
+pytorch=1.8.1
+gdal=3.4.0 
+scikit-image=0.18.1
+scikit-learn=0.24.2
+tqdm=4.61.2
+```
+
+### Installation
+Clone this repo:
+```
+git clone https://git.chenguanzhou.com/chenguanzhou123/Unsupervised-OBIC-Pytorch.git
+cd Unsupervised-OBIC-Pytorch
+```
+### Run the code
+To run our unsupervised segmentation code, you need run the segmentation.py first.
+```
+python segmentation.py 
+python train_net.py -i data/GID_example/example.tif 
+```
+## File Directory Description
+```
+filetree 
+├── /data/
+│  ├── /GID_example/
+│  │  └── example.tif
+├── /figures/
+│  ├── model.png
+│  └── result.png
+├── /losses/
+│  ├── focal_loss.py
+│  └── lovasz_losses.py
+├── /results/
+├── evaluate_gt.py
+├── inference.py
+├── model.py
+├── README.md
+├── segmentation.py
+├── to_ave_color.py
+└── train_net.py
+
+```
+
+## Citation
+If you like to use our work, please consider citing us;
 ```
 @article{chen2022superpixel,
   title={A Superpixel-guided Unsupervised Fast Semantic Segmentation Method of Remote Sensing Images},
@@ -29,13 +75,5 @@ If you like to use our work please consider citing us;
 ```
 OR via [google scholar](https://scholar.google.com/citations?user=lZp8aC4AAAAJ&hl=zh-CN&oi=sra)
 
-
-## Requement
-python3, pytorch, opencv2, osgeo, scikit-image
-
-## Getting Started
-Run our segmentation code
-```
-python segmentation.py 
-python train_net.py -i data 
-```
+## License
+Code is released for non-commercial and research purposes only. For commercial purposes, please contact the authors.

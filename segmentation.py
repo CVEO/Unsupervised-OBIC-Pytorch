@@ -5,8 +5,8 @@ from skimage import segmentation
 
 scale=32
 
-input_images_path = "data/ori_img/"
-output_segs_path = "data/ori_img/"
+input_images_path = "data/GID_example/"
+output_segs_path = "data/GID_example/"
 
 
 def SaveLabelArrayInCompressMode(src_array, filename, file_format="GTiff", seive_small_area = False):
