@@ -33,7 +33,6 @@ class DeepNet(nn.Module):
             nn.Conv2d(inp_dim, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-
             nn.MaxPool2d(2, stride=2),
 
             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
@@ -63,9 +62,12 @@ class DeepNet(nn.Module):
     def forward(self, x):
         return self.seq(x)
 
+
+
 if __name__ == '__main__':
     import torch
     from torchsummary import summary
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # PyTorch v0.4.0
     model = DeepNet(3, 32).to(device)
-    summary(model, input_size=(3, 512, 512))
+    #summary(model, input_size=(3, 512, 512))
+    
