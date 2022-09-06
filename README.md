@@ -1,10 +1,13 @@
 # A Superpixel-Guided Unsupervised Fast Semantic Segmentation Method of Remote Sensing Images
-This repo explains the working of our Unsupervised Segemntaion Algorithm published in IEEE Geoscience and Remote Sensing Letters.
+
+English | [简体中文](./README-zh_CN.md) 
+
+This repo explains the working of our Unsupervised Segemntaion Algorithm published in IEEE Geoscience and Remote Sensing Letters. Our method can perform multi-GPU parallel computing, thus greatly improving the efficiency.
 
 You can access the [**_full paper here_**](https://ieeexplore.ieee.org/document/9854897?source=authoralert).
 
 ## Abstract
-Semantic segmentation is one of the fundamental tasks of pixel-level remote sensing image analysis. Currently, most high-performance semantic segmentation methods are trained in a supervised learning manner. These methods require a large number of image labels as support, but manual annotations are difficult to obtain. To address the problem, we propose an efficient unsupervised remote sensing image segmentation method based on superpixel segmentation and fully convolutional networks (FCNs) in this letter. Our method can achieve pixel-level images segmentation of various scales rapidly without any manual labels or prior knowledge. We use the superpixel segmentation results as synthetic ground truth to guide the gradient descent direction during FCN training. In experiments, our method achieved high performance compared with current unsupervised image segmentation methods on three public datasets. Specifically, our method achieves an adjusted mutual information (AMI) score of 0.2955 on the Gaofen Image Dataset (GID), while processing each image of size 7200 $\times$ 6800 pixels in just 30s.
+Semantic segmentation is one of the fundamental tasks of pixel-level remote sensing image analysis. Currently, most high-performance semantic segmentation methods are trained in a supervised learning manner. These methods require a large number of image labels as support, but manual annotations are difficult to obtain. To address the problem, we propose an efficient unsupervised remote sensing image segmentation method based on superpixel segmentation and fully convolutional networks (FCNs) in this letter. Our method can achieve pixel-level images segmentation of various scales rapidly without any manual labels or prior knowledge. We use the superpixel segmentation results as synthetic ground truth to guide the gradient descent direction during FCN training. In experiments, our method achieved high performance compared with current unsupervised image segmentation methods on three public datasets. Specifically, our method achieves an adjusted mutual information (AMI) score of 0.2955 on the Gaofen Image Dataset (GID), while processing each image of size 7200 × 6800 pixels in just 30s.
 
 ### Network Architecture
 Following images shows the Complete Network Architecture.
@@ -63,7 +66,7 @@ filetree
 ```
 
 ## Citation
-If you like to use our work, please consider citing us;
+If you like to use our work, please consider citing us:
 ```
 @article{chen2022superpixel,
   title={A Superpixel-guided Unsupervised Fast Semantic Segmentation Method of Remote Sensing Images},
@@ -73,7 +76,14 @@ If you like to use our work, please consider citing us;
   publisher={IEEE}
 }
 ```
-OR via [google scholar](https://scholar.google.com/citations?user=lZp8aC4AAAAJ&hl=zh-CN&oi=sra)
 
 ## License
 Code is released for non-commercial and research purposes only. For commercial purposes, please contact the authors.
+
+## Reference
+https://github.com/Yonv1943/Unsupervised-Segmentation
+
+Asako Kanezaki.
+**Unsupervised Image Segmentation by Backpropagation.** 
+*IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)*, 2018.
+([pdf](https://kanezaki.github.io/pytorch-unsupervised-segmentation/ICASSP2018_kanezaki.pdf))
