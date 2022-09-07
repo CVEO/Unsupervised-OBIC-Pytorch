@@ -2,7 +2,7 @@
 
 English | [简体中文](./README-zh_CN.md) 
 
-This repo explains the working of our Unsupervised Segemntaion Algorithm published in IEEE Geoscience and Remote Sensing Letters. Our method can perform multi-GPU parallel computing, thus greatly improving the efficiency.
+This repo explains the working of our Unsupervised Segemntaion Algorithm published in IEEE Geoscience and Remote Sensing Letters. Our method can perform GPU acceleration computing, thus greatly improving the efficiency.
 
 You can access the [**_full paper here_**](https://ieeexplore.ieee.org/document/9854897?source=authoralert).
 

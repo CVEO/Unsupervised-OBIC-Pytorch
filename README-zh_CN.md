@@ -2,7 +2,7 @@
 
 [English](./README-zh_CN.md) | 简体中文 
 
-本开源项目建立在[《超像素引导的无监督遥感图像快速语义分割方法（A Superpixel-Guided Unsupervised Fast Semantic Segmentation Method of Remote Sensing Images）](https://ieeexplore.ieee.org/document/9854897?source=authoralert)》的研究基础上，可为研究人员提供实验源代码。研究成果目前已公开发表在IEEE Geoscience and Remote Sensing Letters期刊上。本项目可以多GPU并行计算，从而大大提升影像分割效率。
+本开源项目建立在[《超像素引导的无监督遥感图像快速语义分割方法（A Superpixel-Guided Unsupervised Fast Semantic Segmentation Method of Remote Sensing Images）](https://ieeexplore.ieee.org/document/9854897?source=authoralert)》的研究基础上，可为研究人员提供实验源代码。研究成果目前已公开发表在IEEE Geoscience and Remote Sensing Letters期刊上。本项目可以GPU并行计算，从而大大提升影像分割效率。
 
 ## 论文摘要
 语义分割是像素级遥感影像分析的基本任务之一。目前，大多数高性能语义分割方法都是以监督学习的方式进行训练的。这些方法需要大量的图像标签作为支持，然而人工标注的数据集很难获得。为了解决这个问题，我们在这篇文章中提出了一种基于超像素分割和全卷积网络（FCN）的高效无监督遥感图像分割方法。我们的方法可以在没有任何人工标注标签或先验知识的情况下快速实现各种尺度的像素级影像分割。我们的方法使用了超像素分割结果作为合成地面真实值来指导 FCN 训练期间的梯度下降方向。在三个公共数据集上的实验结果表明，与当前的无监督图像分割方法相比，我们的方法具有更高的性能。具体来说，我们的方法在高分图像数据集 (GID) 的调整互信息 (AMI) 分数为0.2955，且仅用了 30 秒的时间就可以处理完大小为 7200 × 6800 像素的影像。
