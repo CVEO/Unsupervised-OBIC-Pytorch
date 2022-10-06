@@ -31,14 +31,14 @@ tqdm=4.61.2
 ### 配置
 将本项目下载到本地:
 ```
-git clone https://git.chenguanzhou.com/chenguanzhou123/Unsupervised-OBIC-Pytorch.git
+git clone git@github.com:CVEO/Unsupervised-OBIC-Pytorch.git
 cd Unsupervised-OBIC-Pytorch
 ```
 ### 运行
 开始无监督分割之前需要先运行segmentation.py
 ```
 python segmentation.py 
-python train_net.py -i data/GID_example/example.tif 
+python train_net.py -i data/GID_example
 ```
 ## 文件目录说明
 ```

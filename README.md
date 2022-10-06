@@ -33,14 +33,14 @@ tqdm=4.61.2
 ### Installation
 Clone this repo:
 ```
-git clone https://git.chenguanzhou.com/chenguanzhou123/Unsupervised-OBIC-Pytorch.git
+git clone git@github.com:CVEO/Unsupervised-OBIC-Pytorch.git
 cd Unsupervised-OBIC-Pytorch
 ```
 ### Run the code
 To run our unsupervised segmentation code, you need run the segmentation.py first.
 ```
 python segmentation.py 
-python train_net.py -i data/GID_example/example.tif 
+python train_net.py -i data/GID_example
 ```
 ## File Directory Description
 ```
